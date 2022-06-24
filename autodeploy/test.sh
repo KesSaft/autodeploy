@@ -1,1 +1,0 @@
-touch /projects/$1
