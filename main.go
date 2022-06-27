@@ -30,6 +30,8 @@ func main() {
 		}
 		executor := NewExecutor()
 		executor.Log = true
+		executor.Force = false
+		executor.Execute("rm -rf /projects/$1", name)
 		executor.Force = true
 		executor.Execute("mkdir -p /projects/$1", name)
 		executor.Execute("git clone https://github.com/$1 /projects/$2", path, name)
