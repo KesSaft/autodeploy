@@ -31,6 +31,8 @@ func main() {
 		}
 		executor := NewExecutor()
 		executor.Log = true
+		executor.Force = false
+		executor.Execute("rm -rf /projects/$1", name)
 		executor.Force = true
 		executor.Execute("mkdir -p /projects/$1", name)
 		if token == "" {
@@ -46,7 +48,7 @@ func main() {
 			executor.Execute("docker build /projects/$1 -t $1", name)
 			executor.Execute("docker run -p 127.0.0.1:$1:$2 --restart=always --name=$3 -d $3", externalPort, innerPort, name)
 		} else {
-			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d", name)
+			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes", name)
 		}
 
 		executor.Execute("rm -rf /projects/$1", name)
