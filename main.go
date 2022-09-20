@@ -12,6 +12,7 @@ func main() {
 	router.Get("/deploy", func(request there.HttpRequest) there.HttpResponse {
 		name := request.Params.GetDefault("name", "")
 		path := request.Params.GetDefault("path", "")
+		token := request.Params.GetDefault("token", "")
 		secret := request.Params.GetDefault("secret", "")
 		externalPort := request.Params.GetDefault("externalport", "")
 		innerPort := request.Params.GetDefault("innerport", "")
@@ -32,7 +33,12 @@ func main() {
 		executor.Log = true
 		executor.Force = true
 		executor.Execute("mkdir -p /projects/$1", name)
-		executor.Execute("git clone https://github.com/$1 /projects/$2", path, name)
+		if token == "" {
+			executor.Execute("git clone https://github.com/$1 /projects/$2", path, name)
+		} else {
+			executor.Execute("git clone https://$1:x-oauth-basic@github.com/$2 /projects/$3", token, path, name)
+		}
+		
 		if externalPort != "" && innerPort != "" {
 			executor.Force = false
 			executor.Execute("docker rm -f $1", name)
