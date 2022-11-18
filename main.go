@@ -14,11 +14,10 @@ func main() {
 		path := request.Params.GetDefault("path", "")
 		token := request.Params.GetDefault("token", "")
 		secret := request.Params.GetDefault("secret", "")
-		env := request.Params.GetDefault("envfile", "")
 		externalPort := request.Params.GetDefault("externalport", "")
 		innerPort := request.Params.GetDefault("innerport", "")
 
-		if secret != "mmimAkjQrAehUueDzNBgtmIaex5NpCbMzDmsP1dsGIwuk19eH5d23hPbi33Q" {
+		if secret != "<token>" {
 			fmt.Println(secret)
 			return there.Json(there.StatusForbidden, there.Map{
 				"message": "Authentication Error",
@@ -48,9 +47,9 @@ func main() {
 			executor.Execute("docker rm -f $1", name)
 			executor.Force = true
 			executor.Execute("docker build /projects/$1 -t $1", name)
-			executor.Execute("docker run -p 127.0.0.1:$1:$2 --restart=always --name=$3 $4 -d $3", externalPort, innerPort, name, map[bool]string{true: "--env-file " + env, false: ""}[env != ""])
+			executor.Execute("docker run -p 127.0.0.1:$1:$2 --restart=always --name=$3 -d $3", externalPort, innerPort, name)
 		} else {
-			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes $2", name, map[bool]string{true: "--env-file " + env, false: ""}[env != ""])
+			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes", name)
 		}
 
 		executor.Execute("rm -rf /projects/$1", name)
