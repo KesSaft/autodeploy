@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"bytes"
 	"fmt"
 	"github.com/Gebes/there/v2"
 	"net/http"
+	"strconv"
 )
 
 var updateQueue []Config
@@ -17,7 +20,9 @@ func main() {
 		err := request.Body.BindJson(&body)
 
 		if err != nil {
-			return Error(there.StatusBadRequest, "Could not parse body: "+err.Error())
+			return there.Json(there.StatusBadRequest, there.Map{
+				"message": "Could not parse body",
+			})
 		}
 
 		if body.name == "" || body.key == "" {
@@ -26,12 +31,14 @@ func main() {
 			})
 		}
 
-		config, err := FindConfigWithSpecificValue(body.name)
-		if err != nil || config == nil {
+		configPot, err := FindConfigWithSpecificValue(body.name)
+		if err != nil || configPot == nil {
 			return there.Json(there.StatusForbidden, there.Map{
 				"message": "No such Config found",
 			})
 		}
+
+		config := *configPot
 
 		if config.key != body.key {
 			return there.Json(there.StatusForbidden, there.Map{
@@ -40,7 +47,7 @@ func main() {
 		}
 
 
-		fmt.Printf(config);
+		fmt.Printf("Config: %+v\n", config)
 		return there.Json(there.StatusOK, there.Map{
 			"message": "Fine",
 		})
@@ -55,7 +62,6 @@ func main() {
 			defer resp.Body.Close()
 
 			if err != nil {
-				fmt.Printf(err)
 				return there.Json(there.StatusBadRequest, there.Map{
 					"message": "Could not send POST request to " + config.readyForUpdateURL + " for update possibiliy notification",
 				})
@@ -68,7 +74,7 @@ func main() {
 			})
 		}
 
-		result, error = update(config)
+		result, error := update(config)
 
 		if result == false {
 			return there.Json(there.StatusInternalServerError, there.Map{
@@ -86,12 +92,16 @@ func main() {
 		err := request.Body.BindJson(&body)
 
 		if err != nil {
-			return Error(there.StatusBadRequest, "Could not parse body: "+err.Error())
+			return there.Json(there.StatusBadRequest, there.Map{
+				"message": "Could not parse body",
+			})
 		}
 	
 		config, result := findQueueConfigByName(body.name)
 		if result != true {
-			return Error(there.StatusConflict, "Config is not in queue")
+			return there.Json(there.StatusConflict, there.Map{
+				"message": "Config is not in queue",
+			})
 		}
 
 		if config.key != body.key {
@@ -100,7 +110,7 @@ func main() {
 			})
 		}
 
-		result, error = update(config)
+		result, error := update(config)
 
 		removeConfigFromQueue(config.name)
 
@@ -131,7 +141,7 @@ func IfThenElse(condition bool, a interface{}, b interface{}) interface{} {
 
 func addOrReplaceQueueConfig(newConfig Config) {
 	for i, c := range updateQueue {
-			if c.name == newConfig.Name {
+			if c.name == newConfig.name {
 					updateQueue[i] = newConfig
 					return
 			}
@@ -168,15 +178,15 @@ func update(config Config) (bool, string) {
 	executor.Force = true
 	executor.Execute("mkdir -p /projects/$1", config.name)
 
-	if config.commands {
+	if config.commands != nil {
 		for _, command := range config.commands {
 			executor.Force = command.force
 			executor.Execute(command.command)
 		}
 	} else {
-		var auth = ""
+		var auth string
 
-		if config.githubToken {
+		if config.githubToken != "" {
 			auth = config.githubToken + ":x-oauth-basic@"
 		}
 
@@ -184,11 +194,11 @@ func update(config Config) (bool, string) {
 		executor.Force = false
 		executor.Execute("cp /projects/configs/.$1.env /projects/$1/.env", config.name)
 		
-		if config.externalPort != "" && config.internalPort != "" {
+		if config.externalPort != 0 && config.internalPort != 0 {
 			executor.Execute("docker rm -f $1", config.name)
 			executor.Force = true
 			executor.Execute("docker build /projects/$1 -t $1", config.name)
-			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", config.externalPort, config.internalPort, IfThenElse(config.dockervolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.customVolume != "", " -v " + config.customVolume, "").(string), config.name)
+			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", strconv.Itoa(config.externalPort), strconv.Itoa(config.internalPort), IfThenElse(config.dockerVolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.customVolume != "", " -v " + config.customVolume, "").(string), config.name)
 		} else {
 			executor.Force = true
 			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes", config.name)
