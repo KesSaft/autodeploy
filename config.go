@@ -8,7 +8,7 @@ import (
 )
 
 type CustomCommand struct {
-	command  string `json:"command"`
+	command string `json:"command"`
 	force bool `json:"force"`
 }
 
@@ -22,13 +22,16 @@ type Config struct {
 	githubToken string `json:"github_token"`
 	dockerVolume bool `json:"docker_volume"`
 	customVolume string `json:"custom_volume"`
+	branch string `json:"branch"`
+	seamless bool `json:"seamless"`
+	readyForUpdateURL string `json:"ready_for_update_webhook"`
 	commands []CustomCommand  `json:"commands"`
 }
 
 func FindConfigWithSpecificValue(name string) ([]Config, error) {
 	var foundConfig *Config
 
-	err := filepath.Walk("./configs", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk("./projects/configs", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
