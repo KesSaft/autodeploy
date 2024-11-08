@@ -15,7 +15,7 @@ var updateQueue []Config
 func main() {
 	router := there.NewRouter()
 
-	router.Post("/deploy", func(request there.HttpRequest) there.HttpResponse {
+	/* router.Post("/deploy", func(request there.HttpRequest) there.HttpResponse {
 		var body DeployBody
 		err := request.Body.BindJson(&body)
 
@@ -23,15 +23,20 @@ func main() {
 			return there.Json(there.StatusBadRequest, there.Map{
 				"message": "Could not parse body",
 			})
-		}
+		} */
+	router.Get("/deploy", func(request there.HttpRequest) there.HttpResponse {
+		body := new(DeployBody)
 
-		if body.name == "" || body.key == "" {
+		body.Name = request.Params.GetDefault("name", "")
+		body.Key = request.Params.GetDefault("key", "")
+
+		if body.Name == "" || body.Key == "" {
 			return there.Json(there.StatusBadRequest, there.Map{
-				"message": "Name or Key missing",
+				"message": "Name or Key missing ",
 			})
 		}
 
-		configPot, err := FindConfigWithSpecificValue(body.name)
+		configPot, err := FindConfigWithSpecificValue(body.Name)
 		if err != nil || configPot == nil {
 			return there.Json(there.StatusForbidden, there.Map{
 				"message": "No such Config found",
@@ -40,7 +45,7 @@ func main() {
 
 		config := *configPot
 
-		if config.key != body.key {
+		if config.Key != body.Key {
 			return there.Json(there.StatusForbidden, there.Map{
 				"message": "Authentication Error",
 			})
@@ -52,18 +57,18 @@ func main() {
 			"message": "Fine",
 		})
 
-		if config.readyForUpdateURL != "" {
+		if config.ReadyForUpdateURL != "" {
 			postBody, _ := json.Marshal(map[string]string{
-				"key": config.key,
+				"key": config.Key,
 			})
 			notificationBody := bytes.NewBuffer(postBody)
 
-			resp, err := http.Post(config.readyForUpdateURL, "application/json", notificationBody)
+			resp, err := http.Post(config.ReadyForUpdateURL, "application/json", notificationBody)
 			defer resp.Body.Close()
 
 			if err != nil {
 				return there.Json(there.StatusBadRequest, there.Map{
-					"message": "Could not send POST request to " + config.readyForUpdateURL + " for update possibiliy notification",
+					"message": "Could not send POST request to " + config.ReadyForUpdateURL + " for update possibiliy notification",
 				})
 			}
 
@@ -83,7 +88,7 @@ func main() {
 		}
 
 		return there.Json(there.StatusOK, there.Map{
-			"message": "Successfully deployed service " + config.name,
+			"message": "Successfully deployed service " + config.Name,
 		})
 	})
 
@@ -97,14 +102,14 @@ func main() {
 			})
 		}
 	
-		config, result := findQueueConfigByName(body.name)
+		config, result := findQueueConfigByName(body.Name)
 		if result != true {
 			return there.Json(there.StatusConflict, there.Map{
 				"message": "Config is not in queue",
 			})
 		}
 
-		if config.key != body.key {
+		if config.Key != body.Key {
 			return there.Json(there.StatusForbidden, there.Map{
 				"message": "Authentication Error",
 			})
@@ -112,7 +117,7 @@ func main() {
 
 		result, error := update(config)
 
-		removeConfigFromQueue(config.name)
+		removeConfigFromQueue(config.Name)
 
 		if result == false {
 			return there.Json(there.StatusInternalServerError, there.Map{
@@ -121,7 +126,7 @@ func main() {
 		}
 
 		return there.Json(there.StatusOK, there.Map{
-			"message": "Successfully deployed service " + config.name,
+			"message": "Successfully deployed service " + config.Name,
 		})
 	})
 
@@ -141,7 +146,7 @@ func IfThenElse(condition bool, a interface{}, b interface{}) interface{} {
 
 func addOrReplaceQueueConfig(newConfig Config) {
 	for i, c := range updateQueue {
-			if c.name == newConfig.name {
+			if c.Name == newConfig.Name {
 					updateQueue[i] = newConfig
 					return
 			}
@@ -152,7 +157,7 @@ func addOrReplaceQueueConfig(newConfig Config) {
 
 func findQueueConfigByName(name string) (Config, bool) {
 	for _, c := range updateQueue {
-			if c.name == name {
+			if c.Name == name {
 					return c, true
 			}
 	}
@@ -161,7 +166,7 @@ func findQueueConfigByName(name string) (Config, bool) {
 
 func removeConfigFromQueue(name string) {
 	for i, c := range updateQueue {
-			if c.name == name {
+			if c.Name == name {
 					updateQueue = append(updateQueue[:i], updateQueue[i+1:]...)
 					return
 			}
@@ -169,51 +174,51 @@ func removeConfigFromQueue(name string) {
 }
 
 func update(config Config) (bool, string) {
-	fmt.Printf("Start update for: " + config.name);
+	fmt.Printf("Start update for: " + config.Name);
 
 	executor := NewExecutor()
 	executor.Log = true
 	executor.Force = false
-	executor.Execute("rm -rf /projects/$1", config.name)
+	executor.Execute("rm -rf /projects/$1", config.Name)
 	executor.Force = true
-	executor.Execute("mkdir -p /projects/$1", config.name)
+	executor.Execute("mkdir -p /projects/$1", config.Name)
 
-	if config.commands != nil {
-		for _, command := range config.commands {
-			executor.Force = command.force
-			executor.Execute(command.command)
+	if config.Commands != nil {
+		for _, command := range config.Commands {
+			executor.Force = command.Force
+			executor.Execute(command.Command)
 		}
 	} else {
 		var auth string
 
-		if config.githubToken != "" {
-			auth = config.githubToken + ":x-oauth-basic@"
+		if config.GithubToken != "" {
+			auth = config.GithubToken + ":x-oauth-basic@"
 		}
 
-		executor.Execute("git clone --branch $1 --single-branch https://$2github.com/$3 /projects/$4", config.branch, auth, config.path, config.name)
+		executor.Execute("git clone --branch $1 --single-branch https://$2github.com/$3 /projects/$4", config.Branch, auth, config.Path, config.Name)
 		executor.Force = false
-		executor.Execute("cp /projects/configs/.$1.env /projects/$1/.env", config.name)
+		executor.Execute("cp /projects/configs/.$1.env /projects/$1/.env", config.Name)
 		
-		if config.externalPort != 0 && config.internalPort != 0 {
-			executor.Execute("docker rm -f $1", config.name)
+		if config.ExternalPort != 0 && config.InternalPort != 0 {
+			executor.Execute("docker rm -f $1", config.Name)
 			executor.Force = true
-			executor.Execute("docker build /projects/$1 -t $1", config.name)
-			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", strconv.Itoa(config.externalPort), strconv.Itoa(config.internalPort), IfThenElse(config.dockerVolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.customVolume != "", " -v " + config.customVolume, "").(string), config.name)
+			executor.Execute("docker build /projects/$1 -t $1", config.Name)
+			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", strconv.Itoa(config.ExternalPort), strconv.Itoa(config.InternalPort), IfThenElse(config.DockerVolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.CustomVolume != "", " -v " + config.CustomVolume, "").(string), config.Name)
 		} else {
 			executor.Force = true
-			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes", config.name)
+			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes", config.Name)
 		}
 	}
 
 	executor.Force = true
-	executor.Execute("rm -rf /projects/$1", config.name)
+	executor.Execute("rm -rf /projects/$1", config.Name)
 
 	
 	if executor.DidError() {
-		fmt.Printf("ERROR Updated Failed for: " + config.name + " error: " + executor.FormatErrors());
+		fmt.Printf("ERROR Updated Failed for: " + config.Name + " error: " + executor.FormatErrors());
 		return false, executor.FormatErrors()
 	}
 
-	fmt.Printf("Successfully updated: " + config.name);
+	fmt.Printf("Successfully updated: " + config.Name);
 	return true, ""
 }

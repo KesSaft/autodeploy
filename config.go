@@ -9,24 +9,24 @@ import (
 )
 
 type CustomCommand struct {
-	command string `json:"command"`
-	force bool `json:"force"`
+	Command string `json:"command"`
+	Force bool `json:"force"`
 }
 
 type Config struct {
-	name string `json:"name"`
-	key string `json:"key"`
-	path string `json:"path"`
-	externalPort int `json:"external_port"`
-	internalPort int `json:"internal_port"`
-	containerName string `json:"container_name"`
-	githubToken string `json:"github_token"`
-	dockerVolume bool `json:"docker_volume"`
-	customVolume string `json:"custom_volume"`
-	branch string `json:"branch"`
-	seamless bool `json:"seamless"`
-	readyForUpdateURL string `json:"ready_for_update_webhook"`
-	commands []CustomCommand  `json:"commands"`
+	Name string `json:"name"`
+	Key string `json:"key"`
+	Path string `json:"path"`
+	ExternalPort int `json:"external_port"`
+	InternalPort int `json:"internal_port"`
+	ContainerName string `json:"container_name"`
+	GithubToken string `json:"github_token"`
+	DockerVolume bool `json:"docker_volume"`
+	CustomVolume string `json:"custom_volume"`
+	Branch string `json:"branch"`
+	Seamless bool `json:"seamless"`
+	ReadyForUpdateURL string `json:"ready_for_update_webhook"`
+	Commands []CustomCommand  `json:"commands"`
 }
 
 func FindConfigWithSpecificValue(name string) (*Config, error) {
@@ -38,22 +38,28 @@ func FindConfigWithSpecificValue(name string) (*Config, error) {
 		}
 
 		if filepath.Ext(path) == ".json" {
-			data, err := ioutil.ReadFile(path)
+			if info.IsDir() {
+				return nil
+			}
+
+			rawJson, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
 			}
 
 			var config Config
-			err = json.Unmarshal(data, &config)
+			err = json.Unmarshal(rawJson, &config)
+
 			if err != nil {
 				return err
 			}
 
-			if config.name == name {
+			if config.Name == name {
 				foundConfig = &config
 				return errors.New("desired config found")
 			}
 		}
+
 		return nil
 	})
 
