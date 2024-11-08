@@ -1,8 +1,8 @@
 package main
 
 import (
-	"errors"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,23 +10,23 @@ import (
 
 type CustomCommand struct {
 	Command string `json:"command"`
-	Force bool `json:"force"`
+	Force   bool   `json:"force"`
 }
 
 type Config struct {
-	Name string `json:"name"`
-	Key string `json:"key"`
-	Path string `json:"path"`
-	ExternalPort int `json:"external_port"`
-	InternalPort int `json:"internal_port"`
-	ContainerName string `json:"container_name"`
-	GithubToken string `json:"github_token"`
-	DockerVolume bool `json:"docker_volume"`
-	CustomVolume string `json:"custom_volume"`
-	Branch string `json:"branch"`
-	Seamless bool `json:"seamless"`
-	ReadyForUpdateURL string `json:"ready_for_update_webhook"`
-	Commands []CustomCommand  `json:"commands"`
+	Name              string          `json:"name"`
+	Key               string          `json:"key"`
+	Path              string          `json:"path"`
+	ExternalPort      int             `json:"externalPort"`
+	InternalPort      int             `json:"internalPort"`
+	ContainerName     string          `json:"containerName"`
+	GithubToken       string          `json:"githubToken"`
+	DockerVolume      bool            `json:"dockerVolume"`
+	CustomVolume      string          `json:"customVolume"`
+	Branch            string          `json:"branch"`
+	Seamless          bool            `json:"seamless"`
+	ReadyForUpdateURL string          `json:"readyForUpdateWebhook"`
+	Commands          []CustomCommand `json:"commands"`
 }
 
 func FindConfigWithSpecificValue(name string) (*Config, error) {

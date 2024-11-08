@@ -1,29 +1,29 @@
 package main
 
 import (
-	"encoding/json"
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/Gebes/there/v2"
 	"net/http"
 	"strconv"
+
+	"github.com/Gebes/there/v2"
 )
 
 var updateQueue []Config
-
 
 func main() {
 	router := there.NewRouter()
 
 	/* router.Post("/deploy", func(request there.HttpRequest) there.HttpResponse {
-		var body DeployBody
-		err := request.Body.BindJson(&body)
+	var body DeployBody
+	err := request.Body.BindJson(&body)
 
-		if err != nil {
-			return there.Json(there.StatusBadRequest, there.Map{
-				"message": "Could not parse body",
-			})
-		} */
+	if err != nil {
+		return there.Json(there.StatusBadRequest, there.Map{
+			"message": "Could not parse body",
+		})
+	} */
 	router.Get("/deploy", func(request there.HttpRequest) there.HttpResponse {
 		body := new(DeployBody)
 
@@ -51,11 +51,7 @@ func main() {
 			})
 		}
 
-
-		fmt.Printf("Config: %+v\n", config)
-		return there.Json(there.StatusOK, there.Map{
-			"message": "Fine",
-		})
+		//fmt.Printf("Config: %+v\n", config)
 
 		if config.ReadyForUpdateURL != "" {
 			postBody, _ := json.Marshal(map[string]string{
@@ -81,7 +77,7 @@ func main() {
 
 		result, error := update(config)
 
-		if result == false {
+		if !result {
 			return there.Json(there.StatusInternalServerError, there.Map{
 				"message": error,
 			})
@@ -101,7 +97,7 @@ func main() {
 				"message": "Could not parse body",
 			})
 		}
-	
+
 		config, result := findQueueConfigByName(body.Name)
 		if result != true {
 			return there.Json(there.StatusConflict, there.Map{
@@ -138,18 +134,18 @@ func main() {
 }
 
 func IfThenElse(condition bool, a interface{}, b interface{}) interface{} {
-    if condition {
-        return a
-    }
-    return b
+	if condition {
+		return a
+	}
+	return b
 }
 
 func addOrReplaceQueueConfig(newConfig Config) {
 	for i, c := range updateQueue {
-			if c.Name == newConfig.Name {
-					updateQueue[i] = newConfig
-					return
-			}
+		if c.Name == newConfig.Name {
+			updateQueue[i] = newConfig
+			return
+		}
 	}
 
 	updateQueue = append(updateQueue, newConfig)
@@ -157,24 +153,24 @@ func addOrReplaceQueueConfig(newConfig Config) {
 
 func findQueueConfigByName(name string) (Config, bool) {
 	for _, c := range updateQueue {
-			if c.Name == name {
-					return c, true
-			}
+		if c.Name == name {
+			return c, true
+		}
 	}
 	return Config{}, false
 }
 
 func removeConfigFromQueue(name string) {
 	for i, c := range updateQueue {
-			if c.Name == name {
-					updateQueue = append(updateQueue[:i], updateQueue[i+1:]...)
-					return
-			}
+		if c.Name == name {
+			updateQueue = append(updateQueue[:i], updateQueue[i+1:]...)
+			return
+		}
 	}
 }
 
 func update(config Config) (bool, string) {
-	fmt.Printf("Start update for: " + config.Name);
+	fmt.Printf("Start update for: " + config.Name)
 
 	executor := NewExecutor()
 	executor.Log = true
@@ -198,12 +194,12 @@ func update(config Config) (bool, string) {
 		executor.Execute("git clone --branch $1 --single-branch https://$2github.com/$3 /projects/$4", config.Branch, auth, config.Path, config.Name)
 		executor.Force = false
 		executor.Execute("cp /projects/configs/.$1.env /projects/$1/.env", config.Name)
-		
+
 		if config.ExternalPort != 0 && config.InternalPort != 0 {
 			executor.Execute("docker rm -f $1", config.Name)
 			executor.Force = true
 			executor.Execute("docker build /projects/$1 -t $1", config.Name)
-			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", strconv.Itoa(config.ExternalPort), strconv.Itoa(config.InternalPort), IfThenElse(config.DockerVolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.CustomVolume != "", " -v " + config.CustomVolume, "").(string), config.Name)
+			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", strconv.Itoa(config.ExternalPort), strconv.Itoa(config.InternalPort), IfThenElse(config.DockerVolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.CustomVolume != "", " -v "+config.CustomVolume, "").(string), config.Name)
 		} else {
 			executor.Force = true
 			executor.Execute("docker-compose -f /projects/$1/docker-compose.yml -p $1 up -d --force-recreate --renew-anon-volumes", config.Name)
@@ -213,12 +209,11 @@ func update(config Config) (bool, string) {
 	executor.Force = true
 	executor.Execute("rm -rf /projects/$1", config.Name)
 
-	
 	if executor.DidError() {
-		fmt.Printf("ERROR Updated Failed for: " + config.Name + " error: " + executor.FormatErrors());
+		fmt.Printf("ERROR Updated Failed for: " + config.Name + " error: " + executor.FormatErrors())
 		return false, executor.FormatErrors()
 	}
 
-	fmt.Printf("Successfully updated: " + config.Name);
+	fmt.Printf("Successfully updated: " + config.Name)
 	return true, ""
 }
