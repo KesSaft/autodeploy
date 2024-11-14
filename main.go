@@ -197,6 +197,7 @@ func update(config Config) (bool, string) {
 
 		if config.ExternalPort != 0 && config.InternalPort != 0 {
 			executor.Execute("docker rm -f $1", config.Name)
+			executor.Execute("docker rmi -f $1", config.Name)
 			executor.Force = true
 			executor.Execute("docker build /projects/$1 -t $1", config.Name)
 			executor.Execute("docker run -p 127.0.0.1:$1:$2$3$4 --restart=always --name=$5 -d $5", strconv.Itoa(config.ExternalPort), strconv.Itoa(config.InternalPort), IfThenElse(config.DockerVolume == true, " -v /var/run/docker.sock:/var/run/docker.sock", "").(string), IfThenElse(config.CustomVolume != "", " -v "+config.CustomVolume, "").(string), config.Name)
